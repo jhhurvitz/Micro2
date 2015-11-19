@@ -14,7 +14,7 @@
 
 
 
-int main(void){
+int clock(){
 
 	int i2cHandle;
 
@@ -43,7 +43,7 @@ int main(void){
 	}
 
 	if(ioctl(deviceHandle, I2C_SLAVE, deviceI2CAddress) < 0){
-		printf("We dun fucked up again!\n");
+		printf("Error in ioctl\n");
 		return 1;
 	}
 	
@@ -65,7 +65,6 @@ int main(void){
 
         	sysDays = timeInfo->tm_mday;
         	sysMonths = (timeInfo->tm_mon+1);
-		printf("%d\n", sysMonths);
 	}
 	
 	int lowSec = sysSeconds % 10;
@@ -96,7 +95,6 @@ int main(void){
 	int highYear = (sysYears / 10 ) << 4;
 	highYear &= 0xf0;
 
-	printf("lH:%d\nhH:%d\nlD:%d\nhD:%d\nlM:%d\nhM:%d\nlY:%d\nhY:%d\nlMin:%d\nhMin:%d\n", lowHour,highHour,lowDay,highDay,lowMonth,highMonth,lowYear,highYear,lowMin,highMin);
 
 
 	
@@ -109,8 +107,9 @@ int main(void){
         buffer[6] = (lowMonth | highMonth);
         buffer[7] = (lowYear | highYear);
 
-	printf("Date: %d - %d - %d\n", sysYears, sysMonths, sysDays);
-	printf("Time: %d : %d : %d\n", sysHours, sysMinutes, sysSeconds);	
+	//Enable these lines to see time data while storing it
+	//printf("Date: %d - %d - %d\n", sysYears, sysMonths, sysDays);
+	//printf("Time: %d : %d : %d\n", sysHours, sysMinutes, sysSeconds);	
 
 		
 
@@ -148,49 +147,29 @@ int main(void){
 	lowDay = 0x0f & buffer[4];
 	highDay = (0x30 & buffer[4])>>4;
 	
-	//printf("lowMonth test:%d\n",lowMonth);
-        //printf("highMonth test:%d\n",highMonth);
 
 
 	lowMonth = 0x0f & buffer[5];
 	highMonth = (0x10 & buffer[5])>>4;
 
-	//printf("lowMonth test2:%d\n",lowMonth);
-        //printf("highMonth test2:%d\n",highMonth);
 
 
 
-	//printf("lowyear test:%d\n",lowYear);
-	//printf("highyear test:%d\n",highYear);
 
 	lowYear = 0x0f & buffer[6];
 	highYear = (0xf0 & buffer[6])>>4;
 
-	printf("buffalo 5(Month):%d\n", buffer[5]);
-	printf("buffalo 6(Year):%d\n", buffer[6]);
-	//printf("lowyear test2:%d\n",lowYear);
-        //printf("highyear test2:%d\n",highYear);
 
 
-	printf("lH:%d\nhH:%d\nlD:%d\nhD:%d\nlM:%d\nhM:%d\nlY:%d\nhY:%d\nlMin:%d\nhMin:%d\n", lowHour,highHour,lowDay,highDay,lowMonth,highMonth,lowYear,highYear,lowMin,highMin);
-	printf("test begin\n");
 
 
 	printf("Date: %d%d - %d%d - %d%d\n", highYear,lowYear,highMonth,lowMonth, highDay,lowDay);
 	printf("Time: %d%d : %d%d : %d%d\n", highHour,lowHour, highMin,lowMin, highSec, lowSec);
 
-	printf("test end\n");	
 	
-
-	//year = buffer[4];
-	//month = buffer[6];
-	//day = buffer[5];
-	//hours = buffer[2];
-	//minutes = buffer[1];
-	//seconds = buffer[0];	
-
-	printf("Date: %d - %d - %d\n", year, month, day);
-	printf("Time: %d : %d : %d\n", hours, minutes, seconds);
+	//More basic data to possibly print
+	//printf("Date: %d - %d - %d\n", year, month, day);
+	//printf("Time: %d : %d : %d\n", hours, minutes, seconds);
 	
 	/*
 	int i;

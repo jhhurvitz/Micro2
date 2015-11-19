@@ -447,6 +447,7 @@ int main()
                 {
                 printf("Invalid Command \n");
                 }
+		system("./test");
 
                 closeGPIO(GP_4, fileHandleGPIO_4);
                 closeGPIO(GP_5, fileHandleGPIO_5);
