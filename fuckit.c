@@ -18,8 +18,6 @@ int main(void){
 
 	int i2cHandle;
 
-
-
 	printf("We're doing things!\n");
 	
 	int deviceHandle;
@@ -30,10 +28,8 @@ int main(void){
 	writeGPIO(i2cHandle, 0);
 	close(i2cHandle);
 
-
-
 	int readStatus;
-	int writeStatus;
+	int status;
 
 	char buffer[7];
 	
@@ -51,83 +47,157 @@ int main(void){
 		return 1;
 	}
 	
-	
-//	struct timespec sysTime;
-//      clock_gettime(CLOCK_REALTIME, &sysTime);
-                   
-//	printf("Time in seconds since unix epoch: %d\n", sysTime.tv_sec);
-//	printf("Remainder in nanoseconds	: %d\n", sysTime.tv_nsec);
-	int sysSeconds,sysMinutes,sysHours,sysYears,sysDays,sysMonths ;
-//	sysSeconds = system.tv_sec
+        time_t result = time(NULL);
+    	
+	int sysSeconds, sysMinutes, sysHours, sysYears, sysDays, sysMonths;
 
-         time_t result = time(NULL);
-    if(result != -1)
+	if(result != -1)
 	{
+		struct tm *timeInfo;
 
-	
-	struct tm *timeInfo;
+		timeInfo = gmtime(&result);
 
-	timeInfo = gmtime(&result);
+		sysSeconds = timeInfo->tm_sec;
+        	sysMinutes = timeInfo->tm_min;
+        	sysHours = (timeInfo->tm_hour)%24;//HOUR
 
-	//printf("Seconds: %d\n", timeInfo->tm_sec);
-	//printf("Minute: %d\n", timeInfo->tm_min);
-	//printf("Hour: %d\n",(timeInfo->tm_hour)%24);//HOUR
-	
-	//printf("Year: %d\n", (timeInfo->tm_year+1900) %100 );
-	//printf("Day: %d\n", timeInfo->tm_mday);
-	//printf("Month: %d\n", timeInfo->tm_mon+1);
+	        sysYears = (timeInfo->tm_year+1900) %100 ;
 
-
-
-	sysSeconds = timeInfo->tm_sec;
-        sysMinutes = timeInfo->tm_min;
-        sysHours = (timeInfo->tm_hour)%24;//HOUR
-
-        sysYears = (timeInfo->tm_year+1900) %100 ;
-        sysDays = timeInfo->tm_mday;
-        sysMonths = (timeInfo->tm_mon+1);
-	printf("%d\n", sysMonths);
-
-
-
+        	sysDays = timeInfo->tm_mday;
+        	sysMonths = (timeInfo->tm_mon+1);
+		printf("%d\n", sysMonths);
 	}
-//        printf("The current time is %s(%ju seconds since the Epoch)\n",
-//               asctime(gmtime(&result)), (uintmax_t)result);
-//	printf("%d\n",result);
+	
+	int lowSec = sysSeconds % 10;
+	lowSec &= 0x0f;
+	int highSec = (sysSeconds/10) << 4;
+	highSec &= 0x70;
+	int lowMin = sysMinutes % 10;
+	lowMin &= 0x0f;
+	int highMin = (sysMinutes/10) << 4;
+	highMin &= 0x70;
 
-	buffer[0] = sysSeconds;
-        buffer[1] = sysMinutes;
-        buffer[2] = sysHours; //
-        buffer[4] = sysYears; //this is the year, I think?
-        buffer[5] = sysDays;
-        buffer[6] = sysMonths;
+	int miltime = 0b10111111;
+
+	int lowHour = sysHours % 10;
+	lowHour &= 0x0f;
+	int highHour = (sysHours /10) << 4;
+	highHour &= 0x30;
+	int lowDay = sysDays % 10;
+	lowDay &= 0x0f;
+	int highDay = (sysDays /10) <<4;
+	highDay &= 0x30;
+	int lowMonth = sysMonths % 10;
+	lowMonth &= 0x0f;
+	int highMonth = (sysMonths / 10) << 4;
+	highMonth &= 0x10;
+	int lowYear = sysYears % 10;
+	lowYear &= 0x0f;
+	int highYear = (sysYears / 10 ) << 4;
+	highYear &= 0xf0;
+
+	printf("lH:%d\nhH:%d\nlD:%d\nhD:%d\nlM:%d\nhM:%d\nlY:%d\nhY:%d\nlMin:%d\nhMin:%d\n", lowHour,highHour,lowDay,highDay,lowMonth,highMonth,lowYear,highYear,lowMin,highMin);
 
 
-	//buffer[0] = 0xaa;
-	//buffer[1] = 0xbb;
-	//buffer[2] = 0xcc; //
-	//buffer[4] = 0xdd; //this is the year, I think?
-	//buffer[5] = 0xee;
-	//buffer[6] = 0xff;
+	
+	buffer[0] = 0x00;	//first word, before we start writing data
+        buffer[1] = ( highSec  | lowSec );
+        buffer[2] = ( highMin | lowMin); //
+	buffer[3] = ( highHour | lowHour);
+	buffer[4] = 0x01;
+        buffer[5] = (lowDay | highDay); 
+        buffer[6] = (lowMonth | highMonth);
+        buffer[7] = (lowYear | highYear);
 
-	writeStatus = write(deviceHandle, buffer, 1);
+	printf("Date: %d - %d - %d\n", sysYears, sysMonths, sysDays);
+	printf("Time: %d : %d : %d\n", sysHours, sysMinutes, sysSeconds);	
 
-	if(writeStatus != 1){
+		
+
+
+	status = write(deviceHandle, buffer, 7);
+
+	if(status != 7){
 		printf("Error: more error! (no ack bit)\n");
 		return 0;
-	}else{
-		int seconds = buffer[0];
-		int minutes = buffer[1];
-		int hours = buffer[2];
-		int dayOfWeek = buffer[3];
-		int day = buffer[4];
-		int month = buffer[5];
-		int year = buffer[6];
-
-		printf("Actual RTC-time:\n");
-		printf("Date: %d-%d-%d\n", year, month, day);
-		printf("Time: %d:%d:%d\n", hours, minutes, seconds);
 	}
+
+	buffer[0] = 0x00;
+	status = write (deviceHandle, buffer, 1);
+	if(status != 1){
+		printf("information!\n");
+		return -1;
+	}else{
+		status = read(deviceHandle, buffer, 7);
+		if(status != 7){
+			printf("Something's gone wrong again.\n");
+			return -1;
+		}
+	}
+
+	int year, month, day, hours, minutes, seconds;
+
+
+
+	highSec = (0x70 & buffer[0])>>4;
+	lowSec = 0x0f & buffer[0];
+	lowMin = 0x0f & buffer[1];
+	highMin = (0x70 & buffer[1])>>4;
+	lowHour = 0x0f & buffer[2];
+	highHour = (0x30 & buffer[2])>>4;
+	lowDay = 0x0f & buffer[4];
+	highDay = (0x30 & buffer[4])>>4;
+	
+	//printf("lowMonth test:%d\n",lowMonth);
+        //printf("highMonth test:%d\n",highMonth);
+
+
+	lowMonth = 0x0f & buffer[5];
+	highMonth = (0x10 & buffer[5])>>4;
+
+	//printf("lowMonth test2:%d\n",lowMonth);
+        //printf("highMonth test2:%d\n",highMonth);
+
+
+
+	//printf("lowyear test:%d\n",lowYear);
+	//printf("highyear test:%d\n",highYear);
+
+	lowYear = 0x0f & buffer[6];
+	highYear = (0xf0 & buffer[6])>>4;
+
+	printf("buffalo 5(Month):%d\n", buffer[5]);
+	printf("buffalo 6(Year):%d\n", buffer[6]);
+	//printf("lowyear test2:%d\n",lowYear);
+        //printf("highyear test2:%d\n",highYear);
+
+
+	printf("lH:%d\nhH:%d\nlD:%d\nhD:%d\nlM:%d\nhM:%d\nlY:%d\nhY:%d\nlMin:%d\nhMin:%d\n", lowHour,highHour,lowDay,highDay,lowMonth,highMonth,lowYear,highYear,lowMin,highMin);
+	printf("test begin\n");
+
+
+	printf("Date: %d%d - %d%d - %d%d\n", highYear,lowYear,highMonth,lowMonth, highDay,lowDay);
+	printf("Time: %d%d : %d%d : %d%d\n", highHour,lowHour, highMin,lowMin, highSec, lowSec);
+
+	printf("test end\n");	
+	
+
+	//year = buffer[4];
+	//month = buffer[6];
+	//day = buffer[5];
+	//hours = buffer[2];
+	//minutes = buffer[1];
+	//seconds = buffer[0];	
+
+	printf("Date: %d - %d - %d\n", year, month, day);
+	printf("Time: %d : %d : %d\n", hours, minutes, seconds);
+	
+	/*
+	int i;
+	for(i = 0; i < 7; i++){
+		printf("buffer[%d]: %d\n", i, buffer[i]);
+	} 
+	*/
 }
 
 
